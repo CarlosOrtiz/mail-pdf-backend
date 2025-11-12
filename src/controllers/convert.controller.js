@@ -8,16 +8,8 @@ router.get("/onedrive/files", async (req, res) => {
   try {
     const client = await getGraphClient();
 
-
-    /*    const userId = "carloslosada9901@hotmail.com";
-       const response = await client
-         .api(`/users/${userId}/drive/root/children`)
-         .get(); */
-
-    let user = await client.api('/users')
-      .get();
-
-    res.json(user);
+    const users = await client.api("/users").get();
+    res.json(users);
   } catch (error) {
     console.log("Error fetching OneDrive files:", error.body);
     res.status(500).json({ error: "Failed to fetch OneDrive files" });
