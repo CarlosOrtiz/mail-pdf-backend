@@ -4,15 +4,12 @@ const dayjs = require('dayjs');
 const puppeteer = require('puppeteer');
 const { PDFDocument } = require('pdf-lib');
 const { accessToken } = require('../../common/config/onedrive.config');
+const HttpError = require("../../common/utils/http-error")
 
-/**
- * Lista todos los archivos de la carpeta de hoy
- */
 async function listFilesFromTodayFolder() {
   try {
     const folderName = getTodayFolderName();
 
-    // Obtener todos los elementos de la raíz de OneDrive
     const rootResponse = await axios.get(
       'https://graph.microsoft.com/v1.0/me/drive/root/children',
       {
@@ -22,17 +19,14 @@ async function listFilesFromTodayFolder() {
       }
     );
 
-    // Buscar la carpeta con nombre de hoy
     const folder = rootResponse.data.value.find(
       item => item.folder && item.name === folderName
     );
 
     if (!folder) {
-      console.log(`No existe la carpeta: ${folderName}`);
-      return [];
+      throw new HttpError(404, 'FOLDER_NOT_FOUND', `No existe la carpeta: ${folderName}`)
     }
 
-    // Listar archivos dentro de la carpeta encontrada
     const filesResponse = await axios.get(
       `https://graph.microsoft.com/v1.0/me/drive/items/${folder.id}/children`,
       {
@@ -57,13 +51,15 @@ async function listFilesFromTodayFolder() {
 
     return response
   } catch (error) {
-    throw new Error(`Error listando archivos de la carpeta de hoy: ${error.message}`);
+    if (error instanceof HttpError) throw error;
+    throw new HttpError(
+      500,
+      "LIST_TODAY_FOLDER_FAILED",
+      `Error listando archivos de la carpeta de hoy: ${error.message}`
+    );
   }
 }
 
-/**
- * Descarga un archivo .eml de OneDrive
- */
 async function downloadEmlFromOneDrive(fileId) {
   try {
     const response = await axios.get(
@@ -77,7 +73,6 @@ async function downloadEmlFromOneDrive(fileId) {
 
     const downloadUrl = response.data['@microsoft.graph.downloadUrl'];
 
-    // Descargar el contenido del archivo
     const fileResponse = await axios.get(downloadUrl, {
       responseType: 'arraybuffer'
     });

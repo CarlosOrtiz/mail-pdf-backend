@@ -5,6 +5,7 @@ const authRouter = require('./src/routes/auth.routes');
 const filesRouter = require('./src/routes/files.routes');
 const indexRouter = require('./src/routes/index.routes');
 const converterRouter = require('./src/routes/converter.routes');
+const errorMiddleware = require('./common/middleware/error.middleware');
 
 const app = express();
 const PORT = process.env.PORT || 4001;
@@ -24,6 +25,10 @@ app.get('/health', (req, res) => {
     hasAccessToken: !!accessToken.get()
   });
 });
+
+require('./common/jobs/convert-eml-job');
+
+app.use(errorMiddleware);
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
