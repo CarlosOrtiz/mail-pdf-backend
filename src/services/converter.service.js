@@ -1,13 +1,15 @@
-const { simpleParser } = require('mailparser');
 const axios = require('axios');
 const dayjs = require('dayjs');
 const puppeteer = require('puppeteer');
 const { PDFDocument } = require('pdf-lib');
-const { accessToken } = require('../../common/config/onedrive.config');
+const { simpleParser } = require('mailparser');
 const HttpError = require("../../common/utils/http-error")
+const { accessToken, ensureValidToken } = require('../../common/config/onedrive.config');
 
 async function listFilesFromTodayFolder() {
   try {
+    await ensureValidToken();
+
     const folderName = getTodayFolderName();
 
     const rootResponse = await axios.get(
@@ -36,20 +38,28 @@ async function listFilesFromTodayFolder() {
       }
     );
 
-    const files = filesResponse.data.value.map(file => ({
+    const files = await Promise.all(filesResponse.data.value.map(file => ({
       id: file.id,
       name: file.name,
       size: file.size,
       webUrl: file.webUrl
-    }));
+    })));
 
-    const response = []
-    Promise.all(files.map(async file => {
-      const data = await convertAndUploadEml(file.id, folderName)
-      response.push(data)
-    }))
+    const results = await Promise.all(
+      files.map(async file => {
+        const data = await convertAndUploadEml(file.id, folderName)
+        return data;
+      }))
 
-    return response
+    return {
+      success: true,
+      details: {
+        folder: folderName,
+        totalFiles: files.length,
+        converted: results.filter(r => r.success).length,
+        results,
+      }
+    };
   } catch (error) {
     if (error instanceof HttpError) throw error;
     throw new HttpError(
